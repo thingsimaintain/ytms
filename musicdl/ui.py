@@ -15,25 +15,26 @@ class UIManager:
             "type": "...",
             "status": "Idle"
         }
+        self.layout = Layout()
+        self.layout.split_row(
+            Layout(name="left", ratio=1),
+            Layout(name="right", ratio=1)
+        )
 
     def update_status(self, title=None, artist=None, item_type=None, status=None):
         if title: self.current_status_info['title'] = title
         if artist: self.current_status_info['artist'] = artist
         if item_type: self.current_status_info['type'] = item_type
         if status: self.current_status_info['status'] = status
+        self.refresh_layout()
 
     def add_log(self, msg):
         clean_msg = msg.replace('[download]', '').strip()
         if clean_msg:
             self.log_buffer.append(clean_msg)
+            self.refresh_layout()
 
-    def generate_layout(self):
-        layout = Layout()
-        layout.split_row(
-            Layout(name="left", ratio=1),
-            Layout(name="right", ratio=1)
-        )
-        
+    def refresh_layout(self):
         # Left: Status
         status_text = Text()
         status_text.append(f"\nCurrently Downloading:\n", style="bold underline green")
@@ -61,10 +62,10 @@ class UIManager:
             box=box.ROUNDED
         )
 
-        layout["left"].update(left_panel)
-        layout["right"].update(right_panel)
+        self.layout["left"].update(left_panel)
+        self.layout["right"].update(right_panel)
         
-        return layout
+        return self.layout
 
 class RichLogger:
     def __init__(self, ui_manager):

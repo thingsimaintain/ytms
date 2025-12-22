@@ -22,7 +22,7 @@ def process_queue(queue):
     ui_manager = UIManager()
     
     # Setup the Rich Live display
-    with Live(ui_manager.generate_layout(), refresh_per_second=4, screen=True) as live:
+    with Live(ui_manager.layout, refresh_per_second=4, screen=True) as live:
         
         # Instantiate our custom logger
         ui_logger = RichLogger(ui_manager)
@@ -45,7 +45,7 @@ def process_queue(queue):
                 item_type=item_type,
                 status="Initializing..."
             )
-            live.update(ui_manager.generate_layout())
+            # live.update() is not needed as we are updating the layout object directly
 
             try:
                 # Pass live update callback if needed, but currently core updates status via ui_manager
@@ -101,7 +101,7 @@ def process_queue(queue):
             item_type="-",
             status="Done"
         )
-        live.update(ui_manager.generate_layout())
+        # live.update() not needed
         time.sleep(2)
 
 def search_and_queue():
