@@ -1,8 +1,13 @@
 import os
+import logging
 from ytmusicapi import YTMusic
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3NoHeaderError # type: ignore
 from yt_dlp import YoutubeDL
+
+# Default logger if none provided
+default_logger = logging.getLogger("musicdl")
+default_logger.addHandler(logging.NullHandler())
 
 class MusicDownloader:
     def __init__(self):
@@ -11,10 +16,11 @@ class MusicDownloader:
     def search(self, query):
         return self.ytmusic.search(query)
 
-    def finalize_metadata(self, folder_path, main_artist, logger):
+    def finalize_metadata(self, folder_path, main_artist, logger=None):
         """
         Sets 'Album Artist' and forces 'Track Number' from filename.
         """
+        if not logger: logger = default_logger
         if not os.path.exists(folder_path): return
 
         logger.info(f"Finalizing Metadata for: {os.path.basename(folder_path)}")
@@ -42,7 +48,18 @@ class MusicDownloader:
             except Exception as e:
                 logger.error(f"Tag Error {filename}: {e}")
 
-    def download_item(self, data, ui_manager, logger, download_path=None):
+    def download_item(self, data, download_path=None, logger=None, status_callback=None):
+        """
+        Downloads a song or album.
+        
+        Args:
+            data (dict): The metadata object from search results.
+            download_path (str, optional): Target directory. Defaults to CWD.
+            logger (object, optional): Logger object with debug/info/warning/error methods.
+            status_callback (callable, optional): Function to receive status strings (e.g. "Downloading...").
+        """
+        if not logger: logger = default_logger
+        
         try:
             item_type = data['resultType']
             title = data.get('title', data.get('artist', 'Unknown'))
@@ -87,7 +104,7 @@ class MusicDownloader:
                 ydl_opts['outtmpl'] = f'{base_dir}/{main_artist}/{title}/%(playlist_index)02d - %(title)s.%(ext)s'
                 target_folder = f'{base_dir}/{main_artist}/{title}'
 
-            elif item_type == "song":
+            elif item_type == "song" or item_type == "video":
                 url = f"https://music.youtube.com/watch?v={video_id}"
                 
                 album_data = data.get('album')
@@ -104,13 +121,13 @@ class MusicDownloader:
                 return
 
             # Start Download
-            ui_manager.update_status(status="Downloading...")
+            if status_callback: status_callback("Downloading...")
             
             with YoutubeDL(ydl_opts) as ydl: # type: ignore
                 ydl.download([url])
             
             # Tagging
-            ui_manager.update_status(status="Finalizing Tags...")
+            if status_callback: status_callback("Finalizing Tags...")
             self.finalize_metadata(target_folder, main_artist, logger)
             
             logger.info(f"Completed: {title}")

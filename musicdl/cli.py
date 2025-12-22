@@ -47,50 +47,18 @@ def process_queue(queue):
                 item_type=item_type,
                 status="Initializing..."
             )
-            # live.update() is not needed as we are updating the layout object directly
 
             try:
-                # Pass live update callback if needed, but currently core updates status via ui_manager
-                # However, we need to trigger live.update() when ui_manager changes.
-                # Since core runs synchronously, we might not see updates unless we thread or callback.
-                # For now, let's just rely on the fact that core calls logger which updates buffer, 
-                # and we might need to hook into that or just update periodically.
-                # Actually, the original code updated live inside the loop.
-                # We can pass a callback to core or just let core update ui_manager and we update live here?
-                # No, core blocks. 
                 
-                # To fix this properly without major refactor to async/threads:
-                # We can pass a 'tick' function to core that updates the live display?
-                # Or just pass the live object to core? Passing UI concerns to core is bad practice.
-                # But for this simple app, let's just do the download in core and let core call logger.
-                # The logger updates the buffer.
-                # But the live display needs to be refreshed.
-                # The original code did `live.update(generate_layout())` inside the loop.
-                # But `ydl.download` blocks. `RichLogger` is called by `ydl`.
-                # So inside `RichLogger.add_log`, we should probably trigger a refresh if we could.
-                # But `RichLogger` doesn't have access to `live`.
-                
-                # Let's modify RichLogger in ui.py to accept a callback or the live object?
-                # Or better, just pass the live context to the logger?
-                # For now, let's just keep it simple. The original code didn't update live inside logger, 
-                # it just updated it before and after download steps.
-                # Wait, `ydl` calls logger methods. If we want real-time logs, we need to update live there.
-                # The original code:
-                # `with Live(...) as live:`
-                # `   ...`
-                # `   ydl_opts = { ..., 'logger': ui_logger }`
-                # `   with YoutubeDL(ydl_opts) as ydl: ydl.download(...)`
-                #
-                # It seems the original code ONLY updated `live.update()` explicitly in the loop, 
-                # NOT inside the logger. So the logs panel probably only updated when `live` auto-refreshed?
-                # `Live(..., refresh_per_second=4)` handles the auto-refresh!
-                # So as long as `ui_manager.generate_layout()` returns the new state, it works.
-                # So we just need to make sure `ui_manager` is updated.
-                
-                # We need to pass a way for core to update the status text (Downloading, Tagging etc).
-                # We passed `ui_manager` to `download_item`.
-                
-                downloader.download_item(data, ui_manager, ui_logger, download_path=current_download_path)
+                def status_callback(msg):
+                    ui_manager.update_status(status=msg)
+
+                downloader.download_item(
+                    data, 
+                    download_path=current_download_path,
+                    logger=ui_logger,
+                    status_callback=status_callback
+                )
 
             except Exception as e:
                 # Error is already logged in core
