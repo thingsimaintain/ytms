@@ -1,0 +1,5 @@
+demo_app.py
+build
+.venv
+musicdl.egg-info
+musicdl/__pycache__
