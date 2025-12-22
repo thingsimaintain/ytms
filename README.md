@@ -1,4 +1,4 @@
-# MusicDL
+![ytms](logo.png)
 
 A Python package for downloading music from YouTube Music with metadata.
 
@@ -13,13 +13,15 @@ pip install .
 ### CLI Usage
 
 ```bash
+ytms
+# compatibility alias
 musicdl
 ```
 
 ### Python Usage
 
 ```python
-from musicdl import MusicDownloader
+from ytms import MusicDownloader
 import logging
 
 # Initialize

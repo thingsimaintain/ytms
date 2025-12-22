@@ -3,3 +3,6 @@ build
 .venv
 musicdl.egg-info
 musicdl/__pycache__
+package_test.py
+ytms.egg-info
+ytms/__pycache__

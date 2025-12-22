@@ -81,7 +81,7 @@ def search_and_queue():
     while True:
         clear_screen()
         console.print(r"""[bold cyan]
-       _                 
+       _                  
  _   _| |_ _ __ ___  ___ 
 | | | | __| '_ ` _ \/ __|
 | |_| | |_| | | | | \__ \
