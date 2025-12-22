@@ -13,6 +13,8 @@ downloader = MusicDownloader()
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+current_download_path = None
+
 def process_queue(queue):
     """
     Iterates through the queue and downloads items inside the Rich Live UI.
@@ -88,7 +90,7 @@ def process_queue(queue):
                 # We need to pass a way for core to update the status text (Downloading, Tagging etc).
                 # We passed `ui_manager` to `download_item`.
                 
-                downloader.download_item(data, ui_manager, ui_logger)
+                downloader.download_item(data, ui_manager, ui_logger, download_path=current_download_path)
 
             except Exception as e:
                 # Error is already logged in core
@@ -105,11 +107,17 @@ def process_queue(queue):
         time.sleep(2)
 
 def search_and_queue():
+    global current_download_path
     queue = []
     
     while True:
         clear_screen()
-        console.print(f"[bold cyan]=== Music Downloader ===[/]")
+        console.print(f"[bold cyan]=== musicdl ===[/]")
+        if current_download_path:
+            console.print(f"Download Path: [bold yellow]{current_download_path}[/]")
+        else:
+            console.print(f"Download Path: [bold yellow]Current Directory[/]")
+            
         console.print(f"Current Queue: [bold green]{len(queue)} items[/]")
         for i, item in enumerate(queue):
             console.print(f"  {i+1}. {item.get('title')} ({item['resultType']})")
@@ -117,13 +125,31 @@ def search_and_queue():
         print("\nOptions:")
         print("1. Search and Add to Queue")
         print("2. Start Download")
-        print("3. Quit")
+        print("3. Set Download Path")
+        print("4. Quit")
         
         main_choice = input("\nSelect: ")
         
-        if main_choice == '3':
+        if main_choice == '4':
             sys.exit()
             
+        if main_choice == '3':
+            path = input("\nEnter new download path: ").strip()
+            if path:
+                if os.path.exists(path):
+                    current_download_path = path
+                    print("Path updated.")
+                else:
+                    print("Path does not exist. Creating it...")
+                    try:
+                        os.makedirs(path, exist_ok=True)
+                        current_download_path = path
+                        print("Path created and updated.")
+                    except Exception as e:
+                        print(f"Error creating path: {e}")
+            time.sleep(1)
+            continue
+
         if main_choice == '2':
             if not queue:
                 print("Queue is empty!")
@@ -184,10 +210,21 @@ def search_and_queue():
                 time.sleep(1)
 
 def main():
+    global current_download_path
     parser = argparse.ArgumentParser(description="Music Downloader")
     parser.add_argument("query", nargs="?", help="Search query")
     parser.add_argument("--interactive", "-i", action="store_true", help="Run in interactive mode")
+    parser.add_argument("--output", "-o", help="Output directory")
     args = parser.parse_args()
+
+    if args.output:
+        current_download_path = args.output
+        if not os.path.exists(current_download_path):
+            try:
+                os.makedirs(current_download_path, exist_ok=True)
+            except Exception as e:
+                print(f"Error creating output directory: {e}")
+                return
 
     if args.interactive or not args.query:
         try:

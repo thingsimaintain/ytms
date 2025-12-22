@@ -42,7 +42,7 @@ class MusicDownloader:
             except Exception as e:
                 logger.error(f"Tag Error {filename}: {e}")
 
-    def download_item(self, data, ui_manager, logger):
+    def download_item(self, data, ui_manager, logger, download_path=None):
         item_type = data['resultType']
         title = data.get('title', data.get('artist', 'Unknown'))
         
@@ -54,8 +54,10 @@ class MusicDownloader:
             main_artist = data['artist']
 
         # Setup Paths
-        base_dir = os.path.expanduser("~/music")
-        if not os.path.exists(base_dir): base_dir = os.path.join(os.getcwd(), "Downloads")
+        if download_path:
+            base_dir = download_path
+        else:
+            base_dir = os.getcwd()
         
         cookie_path = os.path.join(os.getcwd(), "cookies.txt")
         has_cookies = os.path.exists(cookie_path)
