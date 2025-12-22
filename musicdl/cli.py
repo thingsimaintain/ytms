@@ -112,7 +112,13 @@ def search_and_queue():
     
     while True:
         clear_screen()
-        console.print(f"[bold cyan]=== musicdl ===[/]")
+        console.print(r"""[bold cyan]
+                     _         _ _ 
+ _ __ ___  _   _ ___(_) ___ __| | |
+| '_ ` _ \| | | / __| |/ __/ _` | |
+| | | | | | |_| \__ \ | (_| (_| | |
+|_| |_| |_|\__,_|___/_|\___\__,_|_|
+                                   [/]""")
         if current_download_path:
             console.print(f"Download Path: [bold yellow]{current_download_path}[/]")
         else:
