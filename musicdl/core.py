@@ -43,61 +43,67 @@ class MusicDownloader:
                 logger.error(f"Tag Error {filename}: {e}")
 
     def download_item(self, data, ui_manager, logger, download_path=None):
-        item_type = data['resultType']
-        title = data.get('title', data.get('artist', 'Unknown'))
-        
-        # Determine Main Artist
-        main_artist = "Unknown Artist"
-        if 'artists' in data and data['artists']:
-            main_artist = data['artists'][0]['name']
-        elif 'artist' in data:
-            main_artist = data['artist']
-
-        # Setup Paths
-        if download_path:
-            base_dir = download_path
-        else:
-            base_dir = os.getcwd()
-        
-        cookie_path = os.path.join(os.getcwd(), "cookies.txt")
-        has_cookies = os.path.exists(cookie_path)
-
-        video_id = data.get('videoId')
-        browse_id = data.get('browseId')
-        
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'cookiefile': 'cookies.txt' if has_cookies else None,
-            'postprocessors': [
-                {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'},
-                {'key': 'EmbedThumbnail'},
-                {'key': 'FFmpegMetadata'},
-            ],
-            'writethumbnail': True,
-            'quiet': True,  # Important: We suppress stdout, use logger instead
-            'logger': logger, # Route logs to Right Panel
-        }
-
-        target_folder = ""
-        url = ""
-
-        if item_type == "album":
-            url = f"https://music.youtube.com/browse/{browse_id}"
-            ydl_opts['outtmpl'] = f'{base_dir}/{main_artist}/{title}/%(playlist_index)02d - %(title)s.%(ext)s'
-            target_folder = f'{base_dir}/{main_artist}/{title}'
-
-        elif item_type == "song":
-            url = f"https://music.youtube.com/watch?v={video_id}"
-            album_name = data.get('album', {}).get('name', 'Singles')
-            ydl_opts['outtmpl'] = f'{base_dir}/{main_artist}/{album_name}/%(title)s.%(ext)s'
-            target_folder = f'{base_dir}/{main_artist}/{album_name}'
-        
-        elif item_type == "artist":
-            logger.error("Artist batch download not supported. Skipping.")
-            return
-
-        # Start Download
         try:
+            item_type = data['resultType']
+            title = data.get('title', data.get('artist', 'Unknown'))
+            
+            # Determine Main Artist
+            main_artist = "Unknown Artist"
+            if 'artists' in data and data['artists']:
+                main_artist = data['artists'][0]['name']
+            elif 'artist' in data:
+                main_artist = data['artist']
+
+            # Setup Paths
+            if download_path:
+                base_dir = download_path
+            else:
+                base_dir = os.getcwd()
+            
+            cookie_path = os.path.join(os.getcwd(), "cookies.txt")
+            has_cookies = os.path.exists(cookie_path)
+
+            video_id = data.get('videoId')
+            browse_id = data.get('browseId')
+            
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'cookiefile': 'cookies.txt' if has_cookies else None,
+                'postprocessors': [
+                    {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'},
+                    {'key': 'EmbedThumbnail'},
+                    {'key': 'FFmpegMetadata'},
+                ],
+                'writethumbnail': True,
+                'quiet': True,  # Important: We suppress stdout, use logger instead
+                'logger': logger, # Route logs to Right Panel
+            }
+
+            target_folder = ""
+            url = ""
+
+            if item_type == "album":
+                url = f"https://music.youtube.com/browse/{browse_id}"
+                ydl_opts['outtmpl'] = f'{base_dir}/{main_artist}/{title}/%(playlist_index)02d - %(title)s.%(ext)s'
+                target_folder = f'{base_dir}/{main_artist}/{title}'
+
+            elif item_type == "song":
+                url = f"https://music.youtube.com/watch?v={video_id}"
+                
+                album_data = data.get('album')
+                if album_data and isinstance(album_data, dict):
+                    album_name = album_data.get('name', 'Singles')
+                else:
+                    album_name = 'Singles'
+                    
+                ydl_opts['outtmpl'] = f'{base_dir}/{main_artist}/{album_name}/%(title)s.%(ext)s'
+                target_folder = f'{base_dir}/{main_artist}/{album_name}'
+            
+            elif item_type == "artist":
+                logger.error("Artist batch download not supported. Skipping.")
+                return
+
+            # Start Download
             ui_manager.update_status(status="Downloading...")
             
             with YoutubeDL(ydl_opts) as ydl: # type: ignore
@@ -111,4 +117,5 @@ class MusicDownloader:
 
         except Exception as e:
             logger.error(f"Error: {e}")
+            raise e
             raise e
