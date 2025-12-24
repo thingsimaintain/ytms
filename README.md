@@ -49,13 +49,18 @@ md.download_item(
 - Rich TUI interface.
 - It can also be referenced programatically
 
-## Web UI (Flask) ✅
+## Web UI (Flask) 
 
 A simple web interface is provided in `webapp.py` that mimics the CLI flow: search, queue items, and download in the background. To run:
 
 ```bash
 pip install -r requirements.txt
 python webapp.py
+```
+or 
+```bash
+docker build -t ytmdl-web .
+docker run -p 5000:5000 ytmdl-web
 ```
 
 Open http://127.0.0.1:5000 in your browser. The UI supports quick downloads, queueing multiple items, and shows basic status (polling).
