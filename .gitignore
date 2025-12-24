@@ -6,3 +6,6 @@ musicdl/__pycache__
 package_test.py
 ytms.egg-info
 ytms/__pycache__
+.*
+dist
+__*

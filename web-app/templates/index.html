@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ytms Web UI</title>
+    <!-- Retro Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Courier+Prime:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      :root {
+        --cream: #f4f1de;
+        --burnt-orange: #e07a5f;
+        --deep-blue: #3d405b;
+        --leaf-green: #81b29a;
+        --vintage-yellow: #f2cc8f;
+        --ink: #2b2d42;
+        --border-width: 3px;
+      }
+
+      body {
+        background-color: var(--cream);
+        background-image: url("https://www.transparenttextures.com/patterns/p6.png"); /* Subtle paper texture */
+        color: var(--ink);
+        font-family: 'Space Grotesk', sans-serif;
+        padding-top: 3rem;
+        line-height: 1.6;
+      }
+
+      h1, h2, h3, h4 {
+        font-family: 'Bungee', cursive;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      /* Retro "Sticker" Logo */
+      .shop-header {
+        background: var(--burnt-orange);
+        display: inline-block;
+        padding: 10px 20px;
+        transform: rotate(-2deg);
+        box-shadow: 5px 5px 0px var(--ink);
+        border: var(--border-width) solid var(--ink);
+        margin-bottom: 2rem;
+      }
+
+      .shop-header span { color: white; }
+
+      /* Vinyl Animation Icon (Visual only) */
+      .vinyl-badge {
+        display: inline-block;
+        width: 60px; height: 60px;
+        border-radius: 50%;
+        background: radial-gradient(circle, #333 10%, #111 11%, #333 15%, #111 20%, #333 25%, #111 30%, #333 35%, #111 40%, #333 45%, #111 50%, var(--vintage-yellow) 51%, var(--vintage-yellow) 60%, #111 61%);
+        border: 2px solid var(--ink);
+        position: relative;
+        vertical-align: middle;
+      }
+      
+      .vinyl-badge::after {
+        content: "";
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 6px; height: 6px;
+        background: var(--cream);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      .spinning {
+        animation: spin 3s linear infinite;
+      }
+
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+
+      /* Card Styling */
+      .card {
+        background: #fff;
+        border: var(--border-width) solid var(--ink);
+        border-radius: 0;
+        box-shadow: 6px 6px 0px var(--ink);
+        transition: transform 0.1s;
+      }
+
+      .result-card:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 8px 8px 0px var(--ink);
+      }
+
+      .result-card {
+        border-left: 15px solid var(--deep-blue);
+        margin-bottom: 1rem;
+      }
+
+      /* Inputs & Buttons */
+      .form-control {
+        border: var(--border-width) solid var(--ink);
+        border-radius: 0;
+        background: #fff;
+        font-family: 'Courier Prime', monospace;
+      }
+
+      .btn {
+        font-family: 'Bungee', cursive;
+        border: var(--border-width) solid var(--ink) !important;
+        border-radius: 0;
+        text-transform: uppercase;
+        box-shadow: 4px 4px 0px var(--ink);
+        transition: all 0.1s;
+      }
+
+      .btn:active {
+        transform: translate(3px, 3px);
+        box-shadow: 0px 0px 0px var(--ink);
+      }
+
+      .btn-primary { background-color: var(--burnt-orange); color: white; }
+      .btn-success { background-color: var(--leaf-green); color: white; }
+      .btn-outline-secondary { background-color: var(--vintage-yellow); color: var(--ink); }
+
+      /* Status Panel */
+      #status-panel {
+        background-color: #fffde7;
+        padding: 1rem;
+        border: 1px dashed var(--ink);
+        font-family: 'Courier Prime', monospace;
+        box-shadow: 8px 8px 0px rgba(0,0,0,0.1);
+      }
+
+      .log-card {
+        background: var(--ink) !important;
+        color: var(--leaf-green) !important;
+        font-family: 'Courier Prime', monospace;
+      }
+
+      #log-area { color: var(--leaf-green); font-size: 0.85rem; }
+
+      .section-title {
+        background: var(--deep-blue);
+        color: white;
+        padding: 5px 15px;
+        display: inline-block;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="text-center text-md-start">
+        <div class="shop-header">
+            <h1><span class="vinyl-badge me-2" id="master-vinyl"></span> <span>YTMS Web UI</span></h1>
+        </div>
+      </div>
+
+      <div class="row mb-5">
+        <div class="col-md-8">
+          <form method="post" action="/search" class="d-flex">
+            <input type="hidden" name="download_mode" id="search-mode" value="device">
+            <input class="form-control me-2" type="search" name="query" placeholder="Search (Artist, Album, Song)" aria-label="Search" value="{{ query or '' }}">
+            <button class="btn btn-primary" type="submit">Search</button>
+          </form>
+        </div>
+
+        <div class="col-md-4 mt-3 mt-md-0">
+          <div class="mb-2">
+            <label class="form-label small fw-bold">Download Mode:</label>
+            <div class="btn-group w-100" role="group">
+              <input type="radio" class="btn-check" name="download-mode" id="mode-device" value="device" {% if not download_mode or download_mode == 'device' %}checked{% endif %}>
+              <label class="btn btn-outline-secondary" for="mode-device" style="font-size: 0.85rem;">To Device</label>
+              <input type="radio" class="btn-check" name="download-mode" id="mode-server" value="server" {% if download_mode == 'server' %}checked{% endif %}>
+              <label class="btn btn-outline-secondary" for="mode-server" style="font-size: 0.85rem;">To Server</label>
+            </div>
+          </div>
+          <form method="post" action="/set_path" class="input-group" id="path-form" style="display: none;">
+            <input class="form-control" type="text" name="path" placeholder="Download Path (required for server mode)" value="{{ download_path or '' }}">
+            <button class="btn btn-outline-secondary" type="submit">Set Path</button>
+          </form>
+        </div>
+      </div>
+
+      {% if error %}
+      <div class="alert alert-danger border-3 rounded-0" style="background: #ff8787; border: 3px solid #000;">{{ error }}</div>
+      {% endif %}
+
+      <div class="row">
+        <div class="col-md-7">
+          <span class="section-title">Search Results</span>
+
+          {% if results is none %}
+            <p class="text-muted mt-3">Enter a query to see results.</p>
+          {% elif not results %}
+            <p class="text-muted mt-3">No results found.</p>
+          {% else %}
+            {% for r in results %}
+              <div class="card result-card">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong class="h5">{{ r.title }}</strong>
+                    <div class="text-muted small">Type: {{ r.type }} // Artist: {{ r.artist or 'Unknown' }}</div>
+                  </div>
+                  <div>
+                    <form method="post" action="/queue/add" style="display:inline;">
+                      <input type="hidden" name="result_id" value="{{ r.id }}">
+                      <input type="hidden" name="query" value="{{ query or '' }}">
+                      <input type="hidden" name="download_mode" class="mode-field" value="device">
+                      <button class="btn btn-success btn-sm" type="submit">Add to Queue</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        <div class="col-md-5">
+          <span class="section-title">Status</span>
+          <div id="status-panel" class="mb-4">
+            <div><strong>RUNNING:</strong> <span id="running">false</span></div>
+            <div><strong>CURRENT:</strong> <span id="current">-</span></div>
+            <div><strong>MESSAGE:</strong> <span id="message">Idle</span></div>
+            <div><strong>QUEUE LENGTH:</strong> <span id="qlen">0</span></div>
+          </div>
+
+          <span class="section-title">Download Queue</span>
+          <div id="queue-list" class="mb-3">
+            {% for item in queue %}
+              <div class="card mb-2" style="border-left: 8px solid var(--vintage-yellow);">
+                <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                  <div class="small">
+                    <strong>{{ item.get('title', item.get('artist')) }}</strong>
+                  </div>
+                  <form method="post" action="/queue/remove" style="display:inline;">
+                    <input type="hidden" name="result_id" value="{{ item.get('videoId', '') }}">
+                    <input type="hidden" name="query" value="{{ query or '' }}">
+                    <input type="hidden" name="download_mode" class="mode-field" value="device">
+                    <button class="btn btn-danger btn-sm py-0" style="font-size: 0.7rem; background: #e63946;">Remove</button>
+                  </form>
+                </div>
+              </div>
+            {% else %}
+              <p class="text-muted small">Queue is empty.</p>
+            {% endfor %}
+          </div>
+
+          <form method="post" action="/start" class="mt-2" id="start-form">
+            <button class="btn btn-primary w-100 btn-lg" type="button" id="start-btn">Start Download</button>
+          </form>
+
+          <div class="mt-4">
+            <h6 class="fw-bold text-uppercase" style="border-bottom: 2px solid var(--ink);">Completed</h6>
+            <ul id="completed-list" class="list-unstyled mt-2" style="font-family: 'Courier Prime'; font-size: 0.8rem;"></ul>
+          </div>
+
+          <!-- Logs -->
+          <div class="mt-3">
+            <button class="btn btn-dark w-100 btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#logPanel">Show Logs</button>
+            <div class="collapse mt-2" id="logPanel">
+              <div class="card p-2 log-card">
+                <pre id="log-area" style="white-space:pre-wrap; max-height:200px; overflow:auto; padding:8px;"></pre>
+                <div class="d-flex justify-content-between align-items-center">
+                    <label class="small"><input id="pause-logs" type="checkbox"> Pause</label>
+                    <button id="clear-logs" class="btn btn-sm btn-outline-light text-dark p-0 px-1" style="font-size: 0.6rem;">Clear</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      console.log('[YTMS] Page loaded, starting polling...');
+      
+      // Handle download mode toggle
+      const modeDevice = document.getElementById('mode-device');
+      const modeServer = document.getElementById('mode-server');
+      const pathForm = document.getElementById('path-form');
+      
+      function updatePathVisibility(){
+        if(modeServer.checked){
+          pathForm.style.display = 'flex';
+        } else {
+          pathForm.style.display = 'none';
+        }
+      }
+      
+      function updateModeFields(){
+        const selectedMode = modeServer.checked ? 'server' : 'device';
+        // Update all hidden mode fields
+        document.querySelectorAll('.mode-field').forEach(field => {
+          field.value = selectedMode;
+        });
+        document.getElementById('search-mode').value = selectedMode;
+      }
+      
+      modeDevice.addEventListener('change', function(){
+        updatePathVisibility();
+        updateModeFields();
+      });
+      modeServer.addEventListener('change', function(){
+        updatePathVisibility();
+        updateModeFields();
+      });
+      updatePathVisibility();
+      updateModeFields();
+      
+      async function poll() {
+        try {
+          const res = await fetch('/status');
+          const j = await res.json();
+          console.log('[YTMS] Status:', j);
+          
+          // Visual check for spinning animation based on status
+          const running = j.running === true || j.running === "true";
+          
+          document.getElementById('running').textContent = running;
+          document.getElementById('current').textContent = j.current || '-';
+          document.getElementById('message').textContent = j.message;
+          document.getElementById('qlen').textContent = j.queue_length;
+
+          // Animate vinyl icon if running
+          const vinyl = document.getElementById('master-vinyl');
+          if(running) { vinyl.classList.add('spinning'); } 
+          else { vinyl.classList.remove('spinning'); }
+
+          const completed = document.getElementById('completed-list');
+          completed.innerHTML = '';
+          // show completed jobs with download links when ready
+          (j.completed_jobs || []).forEach(c => {
+            const li = document.createElement('li');
+            if(c.ready){
+              const a = document.createElement('a');
+              a.href = `/download/${c.job_id}`;
+              a.textContent = `Download ${c.job_id.substring(0, 8)}...`;
+              a.className = 'btn btn-sm btn-success me-2';
+              a.style = 'font-size: 0.8rem; padding: 2px 8px;';
+              li.appendChild(a);
+              const small = document.createElement('small');
+              small.textContent = ` Ready!`;
+              li.appendChild(small);
+              console.log('[YTMS] Download ready:', c.job_id);
+            } else {
+              li.textContent = `Job ${c.job_id.substring(0, 8)}... - ${c.status}`;
+            }
+            completed.appendChild(li);
+          });
+          
+          // Auto-expand logs if running
+          if(running || (j.completed_jobs && j.completed_jobs.length > 0)){
+            const logPanel = document.getElementById('logPanel');
+            if(logPanel && !logPanel.classList.contains('show')){
+              console.log('[YTMS] Auto-expanding logs panel');
+              logPanel.classList.add('show');
+            }
+          }
+        } catch (e) { 
+          console.error('[YTMS] Status poll error:', e); 
+        }
+      }
+
+      async function pollLogs(){
+        try {
+          const r = await fetch('/logs');
+          const lines = await r.json();
+          console.log('[YTMS] Logs count:', lines.length);
+          const area = document.getElementById('log-area');
+          area.textContent = lines.join('\n');
+          const paused = document.getElementById('pause-logs').checked;
+          if(!paused){ area.scrollTop = area.scrollHeight; }
+        } catch(e){ 
+          console.error('[YTMS] Log fetch error:', e); 
+        }
+      }
+
+      document.getElementById('clear-logs').addEventListener('click', function(){ 
+        document.getElementById('log-area').textContent = ''; 
+        console.log('[YTMS] Logs cleared');
+      });
+      
+      // Handle Start Download button with AJAX to avoid page refresh
+      document.getElementById('start-btn').addEventListener('click', async function(){
+        console.log('[YTMS] Start Download clicked');
+        try {
+          const response = await fetch('/start', { method: 'POST' });
+          if(response.ok){
+            console.log('[YTMS] Start request successful');
+            // Immediately trigger a poll to update status
+            poll();
+            pollLogs();
+          } else {
+            console.error('[YTMS] Start request failed:', response.status);
+          }
+        } catch(e){
+          console.error('[YTMS] Start request error:', e);
+        }
+      });
+      
+      setInterval(poll, 2000);
+      setInterval(pollLogs, 2000);
+      
+      // Initial poll
+      poll(); 
+      pollLogs();
+      
+      console.log('[YTMS] Polling started (every 2s)');
+    </script>
+  </body>
+</html>

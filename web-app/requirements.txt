@@ -1,0 +1,8 @@
+Flask>=2.0
+ytms
+# Optional but recommended for rate-limiting and security headers
+Flask-Limiter>=2.0
+# For production WSGI server (use on Linux/macOS)
+gunicorn
+# On Windows you can use waitress
+waitress

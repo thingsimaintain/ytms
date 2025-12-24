@@ -2,3 +2,4 @@ ytmusicapi
 yt-dlp
 mutagen
 rich
+Flask
