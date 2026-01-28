@@ -74,6 +74,49 @@ def process_queue(queue):
         # live.update() not needed
         time.sleep(2)
 
+def extra_menu():
+    global current_download_path
+    while True:
+        clear_screen()
+        console.print("[bold cyan]Extra Tools[/]")
+        print("1. Crop All Albums in Library")
+        print("2. Crop Specific Directory")
+        print("3. Back")
+        
+        choice = input("\nSelect: ")
+        
+        if choice == '3':
+            break
+            
+        if choice == '1':
+            path = current_download_path or os.getcwd()
+            confirm = input(f"This will scan ALL subfolders in '{path}' and crop artwork in MP3s. Continue? (y/n): ")
+            if confirm.lower() != 'y': continue
+            
+            print("Scanning...")
+            for root, dirs, files in os.walk(path):
+                if any(f.endswith('.mp3') for f in files):
+                    print(f"Processing: {root}")
+                    downloader.fix_embedded_artwork(root)
+            input("Finished. Press Enter.")
+            
+        if choice == '2':
+            path = current_download_path or os.getcwd()
+            print(f"Base Path: {path}")
+            sub = input("Enter relative path to album/artist folder: ")
+            full_path = os.path.join(path, sub)
+            
+            if os.path.exists(full_path) and os.path.isdir(full_path):
+                print(f"Processing: {full_path}")
+                downloader.fix_embedded_artwork(full_path)
+                # Recurse children
+                for root, dirs, files in os.walk(full_path):
+                     if any(f.endswith('.mp3') for f in files):
+                        downloader.fix_embedded_artwork(root)
+                input("Finished. Press Enter.")
+            else:
+                input("Invalid path. Press Enter.")
+
 def search_and_queue():
     global current_download_path
     queue = []
@@ -101,12 +144,17 @@ def search_and_queue():
         print("1. Search and Add to Queue")
         print("2. Start Download")
         print("3. Set Download Path")
-        print("4. Quit")
+        print("4. Extra Tools")
+        print("5. Quit")
         
         main_choice = input("\nSelect: ")
         
-        if main_choice == '4':
+        if main_choice == '5':
             sys.exit()
+
+        if main_choice == '4':
+            extra_menu()
+            continue
             
         if main_choice == '3':
             path = input("\nEnter new download path: ").strip()
