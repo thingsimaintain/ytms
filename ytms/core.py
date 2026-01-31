@@ -68,19 +68,32 @@ class MusicDownloader:
                         except ID3NoHeaderError:
                             pass
                         
+                        # Ensure compatibility by converting WebP to JPEG
+                        img_data = None
                         mime = 'image/jpeg'
-                        if img_name.lower().endswith('.png'): mime = 'image/png'
-                        elif img_name.lower().endswith('.webp'): mime = 'image/webp'
-                        
-                        with open(img_path, 'rb') as albumart:
-                            audio.tags.add(
-                                APIC(
-                                    encoding=3,
-                                    mime=mime,
-                                    type=3, desc=u'Cover',
-                                    data=albumart.read()
-                                )
+
+                        if img_name.lower().endswith('.webp'):
+                            with Image.open(img_path) as im:
+                                im = im.convert('RGB')
+                                buf = io.BytesIO()
+                                im.save(buf, format='JPEG', quality=90)
+                                img_data = buf.getvalue()
+                                mime = 'image/jpeg'
+                        else:
+                            if img_name.lower().endswith('.png'):
+                                mime = 'image/png'
+                            
+                            with open(img_path, 'rb') as f:
+                                img_data = f.read()
+
+                        audio.tags.add(
+                            APIC(
+                                encoding=3,
+                                mime=mime,
+                                type=3, desc=u'Cover',
+                                data=img_data
                             )
+                        )
                         audio.save()
                         logger.debug(f"Embedded Artwork: {mp3_path}")
                         
@@ -115,27 +128,36 @@ class MusicDownloader:
                                 with io.BytesIO(img_data) as buf:
                                     img = Image.open(buf)
                                     width, height = img.size
-                                    if(abs(width - height) > 1): # Tolerance of 1px
-                                        # Crop
-                                        new_dim = min(width, height)
-                                        left = (width - new_dim)/2
-                                        top = (height - new_dim)/2
-                                        right = (width + new_dim)/2
-                                        bottom = (height + new_dim)/2
-                                        
-                                        img = img.crop((left, top, right, bottom))
+                                    needs_crop = abs(width - height) > 1
+                                    is_webp = tag.mime == 'image/webp' or (getattr(img, 'format', '') == 'WEBP')
+
+                                    if needs_crop or is_webp:
+                                        if needs_crop:
+                                            # Crop
+                                            new_dim = min(width, height)
+                                            left = (width - new_dim)/2
+                                            top = (height - new_dim)/2
+                                            right = (width + new_dim)/2
+                                            bottom = (height + new_dim)/2
+                                            img = img.crop((left, top, right, bottom))
                                         
                                         # Save back to bytes
                                         out_buf = io.BytesIO()
-                                        # Determine format from mime or original
+                                        
+                                        # Determine format - force JPEG if WebP
                                         fmt = 'JPEG'
-                                        if tag.mime == 'image/png': fmt = 'PNG'
-                                        if tag.mime == 'image/webp': fmt = 'WEBP'
+                                        if tag.mime == 'image/png' and not is_webp:
+                                            fmt = 'PNG'
+                                        elif is_webp:
+                                            fmt = 'JPEG'
+                                            img = img.convert('RGB')
+                                            tag.mime = 'image/jpeg'
                                         
                                         img.save(out_buf, format=fmt)
                                         tag.data = out_buf.getvalue()
                                         updated = True
-                                        logger.info(f"Cropped art for {filename}")
+                                        action = "Cropped/Converted" if needs_crop and is_webp else ("Cropped" if needs_crop else "Converted")
+                                        logger.info(f"{action} art for {filename}")
                                 
                                 if updated:
                                     found_art = True
