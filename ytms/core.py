@@ -51,19 +51,30 @@ class MusicDownloader:
 
     def crop_images_in_folder(self, folder_path, logger=None):
         """
-        Scans folder for images that are wider than tall (pillarboxed) and crops them to a center square.
+        Recursively scans folder for images that are wider than tall (pillarboxed) and crops them to a center square.
         """
         if not logger: logger = default_logger
         if not os.path.exists(folder_path): 
             logger.error(f"Path not found: {folder_path}")
             return
 
-        logger.info(f"Scanning for images to crop in: {folder_path}")
+        logger.info(f"Recursively scanning for images to crop in: {folder_path}")
         
         count = 0
+        scanned_files = 0
+        scanned_folders = 0
+        
+        # Folders to ignore
+        ignored_dirs = {'.git', '__pycache__', 'node_modules', 'venv', 'env', '.vscode', 'ytms.egg-info', 'build', 'dist'}
+
         for root, dirs, files in os.walk(folder_path):
+            # Modify dirs in-place to skip ignored directories
+            dirs[:] = [d for d in dirs if d not in ignored_dirs]
+            
+            scanned_folders += 1
             for file in files:
                 if file.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                    scanned_files += 1
                     image_path = os.path.join(root, file)
                     try:
                         with Image.open(image_path) as img:
@@ -78,11 +89,12 @@ class MusicDownloader:
                                 
                                 img_cropped = img.crop((left, top, right, bottom))
                                 img_cropped.save(image_path)
-                                logger.info(f"Cropped: {file}")
+                                logger.info(f"Cropped: {file} ({width}x{height} -> {new_width}x{height})")
                                 count += 1
                     except Exception as e:
                         logger.error(f"Error cropping {file}: {e}")
-        logger.info(f"Finished. Cropped {count} images.")
+        
+        logger.info(f"Finished. Scanned {scanned_folders} folders, {scanned_files} images. Cropped {count} images.")
 
     def download_item(self, data, download_path=None, logger=None, status_callback=None):
         """
