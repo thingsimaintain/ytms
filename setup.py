@@ -28,6 +28,8 @@ setup(
         "yt-dlp",
         "mutagen",
         "rich",
+        "Pillow",
+        "Flask",
     ],
     entry_points={
         "console_scripts": [

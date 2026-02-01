@@ -101,12 +101,38 @@ def search_and_queue():
         print("1. Search and Add to Queue")
         print("2. Start Download")
         print("3. Set Download Path")
-        print("4. Quit")
+        print("4. Extra Tools")
+        print("5. Quit") # Changed from 4
         
         main_choice = input("\nSelect: ")
         
-        if main_choice == '4':
+        if main_choice == '5': # Quit
             sys.exit()
+
+        if main_choice == '4': # Extra Tools
+            print("\nExtra Tools:")
+            print("1. Crop Album Art Borders")
+            print("b. Back")
+            
+            tool_choice = input("\nSelect Tool: ")
+            
+            if tool_choice == '1':
+                t_path = input(f"\nEnter folder path (Enter for current: {current_download_path or 'CWD'}): ").strip()
+                if not t_path:
+                    t_path = current_download_path if current_download_path else os.getcwd()
+                
+                print(f"Running cropping tool on: {t_path}")
+                
+                class ConsoleLogger:
+                    def info(self, msg): print(f"  [INFO] {msg}")
+                    def error(self, msg): print(f"  [ERROR] {msg}")
+                    def debug(self, msg): pass
+                    def warning(self, msg): print(f"  [WARN] {msg}")
+
+                downloader.crop_images_in_folder(t_path, logger=ConsoleLogger())
+                input("\nFinished. Press Enter to continue...")
+            
+            continue
             
         if main_choice == '3':
             path = input("\nEnter new download path: ").strip()

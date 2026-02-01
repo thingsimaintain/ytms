@@ -1,5 +1,6 @@
 import os
 import logging
+from PIL import Image
 from ytmusicapi import YTMusic
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3NoHeaderError # type: ignore
@@ -47,6 +48,41 @@ class MusicDownloader:
                 
             except Exception as e:
                 logger.error(f"Tag Error {filename}: {e}")
+
+    def crop_images_in_folder(self, folder_path, logger=None):
+        """
+        Scans folder for images that are wider than tall (pillarboxed) and crops them to a center square.
+        """
+        if not logger: logger = default_logger
+        if not os.path.exists(folder_path): 
+            logger.error(f"Path not found: {folder_path}")
+            return
+
+        logger.info(f"Scanning for images to crop in: {folder_path}")
+        
+        count = 0
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                if file.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                    image_path = os.path.join(root, file)
+                    try:
+                        with Image.open(image_path) as img:
+                            width, height = img.size
+                            # If width is significantly larger than height (e.g. > 5% difference), crop to square
+                            if width > height * 1.05: 
+                                new_width = height
+                                left = int((width - new_width) / 2)
+                                top = 0
+                                right = int((width + new_width) / 2)
+                                bottom = height
+                                
+                                img_cropped = img.crop((left, top, right, bottom))
+                                img_cropped.save(image_path)
+                                logger.info(f"Cropped: {file}")
+                                count += 1
+                    except Exception as e:
+                        logger.error(f"Error cropping {file}: {e}")
+        logger.info(f"Finished. Cropped {count} images.")
 
     def download_item(self, data, download_path=None, logger=None, status_callback=None):
         """
@@ -124,8 +160,7 @@ class MusicDownloader:
             if status_callback: status_callback("Downloading...")
             
             with YoutubeDL(ydl_opts) as ydl: # type: ignore
-                ydl.download([url])
-            
+                ydl.download([url])            
             # Tagging
             if status_callback: status_callback("Finalizing Tags...")
             self.finalize_metadata(target_folder, main_artist, logger)
