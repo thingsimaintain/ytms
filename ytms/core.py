@@ -5,10 +5,44 @@ from ytmusicapi import YTMusic
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3NoHeaderError # type: ignore
 from yt_dlp import YoutubeDL
+from yt_dlp.postprocessor import PostProcessor, EmbedThumbnailPP
 
 # Default logger if none provided
 default_logger = logging.getLogger("ytms")
 default_logger.addHandler(logging.NullHandler())
+
+
+class CropThumbnailPP(PostProcessor):
+    """Crops wide (rectangular) thumbnails to a center square before they are embedded as cover art."""
+
+    def run(self, info):
+        """
+        Crop any downloaded thumbnail files to a centre square based on height.
+
+        Called by yt-dlp during the post_process stage. Each entry in
+        ``info['thumbnails']`` that has a ``filepath`` key points to an image
+        file on disk. If that image is wider than it is tall the excess width
+        is trimmed symmetrically so the result is height×height pixels.
+
+        Args:
+            info (dict): yt-dlp info dict for the current media item.
+
+        Returns:
+            tuple: ([], info) – no files are deleted, info is passed through.
+        """
+        for thumb in (info.get('thumbnails') or []):
+            path = thumb.get('filepath')
+            if not path or not os.path.exists(path):
+                continue
+            try:
+                with Image.open(path) as img:
+                    width, height = img.size
+                    if width > height:
+                        left = (width - height) // 2
+                        img.crop((left, 0, left + height, height)).save(path)
+            except Exception as e:
+                self.report_warning(f'Could not crop thumbnail {path}: {e}')
+        return [], info
 
 class MusicDownloader:
     def __init__(self):
@@ -136,7 +170,6 @@ class MusicDownloader:
                 'cookiefile': 'cookies.txt' if has_cookies else None,
                 'postprocessors': [
                     {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'},
-                    {'key': 'EmbedThumbnail'},
                     {'key': 'FFmpegMetadata'},
                 ],
                 'writethumbnail': True,
@@ -183,6 +216,10 @@ class MusicDownloader:
             if status_callback: status_callback("Downloading...")
             
             with YoutubeDL(ydl_opts) as ydl: # type: ignore
+                # CropThumbnailPP must run before EmbedThumbnail so the
+                # thumbnail is square by the time it is embedded as cover art.
+                ydl.add_post_processor(CropThumbnailPP(), when='post_process')
+                ydl.add_post_processor(EmbedThumbnailPP(ydl), when='post_process')
                 ydl.download([url])            
             # Tagging
             if status_callback: status_callback("Finalizing Tags...")

@@ -1,13 +1,48 @@
 import os
 import logging
+from PIL import Image
 from ytmusicapi import YTMusic
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3NoHeaderError # type: ignore
 from yt_dlp import YoutubeDL
+from yt_dlp.postprocessor import PostProcessor, EmbedThumbnailPP
 
 # Default logger if none provided
 default_logger = logging.getLogger("musicdl")
 default_logger.addHandler(logging.NullHandler())
+
+
+class CropThumbnailPP(PostProcessor):
+    """Crops wide (rectangular) thumbnails to a center square before they are embedded as cover art."""
+
+    def run(self, info):
+        """
+        Crop any downloaded thumbnail files to a centre square based on height.
+
+        Called by yt-dlp during the post_process stage. Each entry in
+        ``info['thumbnails']`` that has a ``filepath`` key points to an image
+        file on disk. If that image is wider than it is tall the excess width
+        is trimmed symmetrically so the result is height×height pixels.
+
+        Args:
+            info (dict): yt-dlp info dict for the current media item.
+
+        Returns:
+            tuple: ([], info) – no files are deleted, info is passed through.
+        """
+        for thumb in (info.get('thumbnails') or []):
+            path = thumb.get('filepath')
+            if not path or not os.path.exists(path):
+                continue
+            try:
+                with Image.open(path) as img:
+                    width, height = img.size
+                    if width > height:
+                        left = (width - height) // 2
+                        img.crop((left, 0, left + height, height)).save(path)
+            except Exception as e:
+                self.report_warning(f'Could not crop thumbnail {path}: {e}')
+        return [], info
 
 class MusicDownloader:
     def __init__(self):
@@ -47,6 +82,53 @@ class MusicDownloader:
                 
             except Exception as e:
                 logger.error(f"Tag Error {filename}: {e}")
+
+    def crop_images_in_folder(self, folder_path, logger=None):
+        """
+        Recursively scans folder for images that are wider than tall (pillarboxed) and crops them to a center square.
+        """
+        if not logger: logger = default_logger
+        if not os.path.exists(folder_path):
+            logger.error(f"Path not found: {folder_path}")
+            return
+
+        logger.info(f"Recursively scanning for images to crop in: {folder_path}")
+
+        count = 0
+        scanned_files = 0
+        scanned_folders = 0
+
+        # Folders to ignore
+        ignored_dirs = {'.git', '__pycache__', 'node_modules', 'venv', 'env', '.vscode', 'ytms.egg-info', 'musicdl.egg-info', 'build', 'dist'}
+
+        for root, dirs, files in os.walk(folder_path):
+            # Modify dirs in-place to skip ignored directories
+            dirs[:] = [d for d in dirs if d not in ignored_dirs]
+
+            scanned_folders += 1
+            for file in files:
+                if file.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                    scanned_files += 1
+                    image_path = os.path.join(root, file)
+                    try:
+                        with Image.open(image_path) as img:
+                            width, height = img.size
+                            # If width is significantly larger than height (e.g. > 5% difference), crop to square
+                            if width > height * 1.05:
+                                new_width = height
+                                left = int((width - new_width) / 2)
+                                top = 0
+                                right = int((width + new_width) / 2)
+                                bottom = height
+
+                                img_cropped = img.crop((left, top, right, bottom))
+                                img_cropped.save(image_path)
+                                logger.info(f"Cropped: {file} ({width}x{height} -> {new_width}x{height})")
+                                count += 1
+                    except Exception as e:
+                        logger.error(f"Error cropping {file}: {e}")
+
+        logger.info(f"Finished. Scanned {scanned_folders} folders, {scanned_files} images. Cropped {count} images.")
 
     def download_item(self, data, download_path=None, logger=None, status_callback=None):
         """
@@ -88,7 +170,6 @@ class MusicDownloader:
                 'cookiefile': 'cookies.txt' if has_cookies else None,
                 'postprocessors': [
                     {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'},
-                    {'key': 'EmbedThumbnail'},
                     {'key': 'FFmpegMetadata'},
                 ],
                 'writethumbnail': True,
@@ -135,6 +216,10 @@ class MusicDownloader:
             if status_callback: status_callback("Downloading...")
             
             with YoutubeDL(ydl_opts) as ydl: # type: ignore
+                # CropThumbnailPP must run before EmbedThumbnail so the
+                # thumbnail is square by the time it is embedded as cover art.
+                ydl.add_post_processor(CropThumbnailPP(), when='post_process')
+                ydl.add_post_processor(EmbedThumbnailPP(ydl), when='post_process')
                 ydl.download([url])
             
             # Tagging
