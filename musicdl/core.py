@@ -100,7 +100,18 @@ class MusicDownloader:
             url = ""
 
             if item_type == "album":
-                url = f"https://music.youtube.com/browse/{browse_id}"
+                # Resolve the album browseId to its audioPlaylistId so yt-dlp
+                # can download it via the standard playlist URL.  The browse
+                # URL (MPREb_*) no longer works with recent yt-dlp versions.
+                try:
+                    album_info = self.ytmusic.get_album(browse_id)
+                    playlist_id = album_info.get('audioPlaylistId')
+                except Exception as e:
+                    logger.error(f"Failed to resolve album to playlist: {e}")
+                    raise
+                if not playlist_id:
+                    raise ValueError(f"Could not find audioPlaylistId for album {browse_id}")
+                url = f"https://music.youtube.com/playlist?list={playlist_id}"
                 ydl_opts['outtmpl'] = f'{base_dir}/{main_artist}/{title}/%(playlist_index)02d - %(title)s.%(ext)s'
                 target_folder = f'{base_dir}/{main_artist}/{title}'
 
@@ -134,5 +145,4 @@ class MusicDownloader:
 
         except Exception as e:
             logger.error(f"Error: {e}")
-            raise e
             raise e
